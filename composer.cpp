@@ -66,8 +66,7 @@ namespace std {
 template <>
 struct std::hash<Stem> {
   size_t operator()(const Stem& stem) const {
-    return std::hash<char>()(stem.species) ^
-           (std::hash<char>()(stem.size) << 1);
+    return stem.size << 8 | stem.species;
   }
 };
 }  // namespace std
