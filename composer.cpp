@@ -1,5 +1,6 @@
 #include <forward_list>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -78,7 +79,7 @@ class StemCount {
  private:
   friend ostream& operator<<(ostream& out, StemCount const& req) {
     // Output streaming for StemCount objects
-    return out << req.count << req.stem.species ;
+    return out << req.count << req.stem.species;
   }
 };
 
@@ -137,7 +138,7 @@ class Design {
 
 class Bouquet {
  public:
-  Bouquet(const Design& design, forward_list<StemCount> arrangement)
+  Bouquet(const Design& design, const forward_list<StemCount> arrangement)
       : design(design), arrangement(arrangement) {}
 
  private:
@@ -153,28 +154,57 @@ class Bouquet {
   }
 };
 
-bool extract(unordered_map<Stem, int>& supply,
-             const Design& design,
-             forward_list<StemCount>& arrangement) {
-  // Takes flowers from the supply into the given arrangement, reports success.
-  auto remaining = design.total;
-  for (const auto& req : design.required) {
-    auto& entry = supply[req.stem];
-    if (!entry)
-      return false;
-    auto take = min({req.count, entry, remaining});
-    arrangement.push_front({req.stem, take});
-    entry -= take;
-    remaining -= take;
+class Composer {
+ public:
+  void add_design(const Design design) {
+    for (const auto& req : design.required)
+      designs[req.stem].push_front(design);
   }
-  return remaining == 0;
-}
 
-void restore(unordered_map<Stem, int>& supply,
-             const forward_list<StemCount>& arrangement) {
-  for (const auto& spec : arrangement)
-    supply[spec.stem] += spec.count;
-}
+  const Stem add_stem(const Stem stem) {
+    supply[stem] += 1;
+    return stem;
+  }
+
+  optional<Bouquet> bouquet_for_stem(const Stem& stem) {
+    // Returns a Bouquet if one could be created given a newly inserted stem.
+    for (const auto& design : designs[stem]) {
+      forward_list<StemCount> arrangement;
+      if (_extract(design, arrangement)) {
+        return Bouquet{design, arrangement};
+      } else {
+        _restore(arrangement);
+      }
+    }
+    return nullopt;
+  }
+
+ private:
+  unordered_map<Stem, int> supply;
+  unordered_map<Stem, forward_list<Design>> designs;
+
+  bool _extract(const Design& design, forward_list<StemCount>& arrangement) {
+    // Moves flowers from the supply into the given arrangement.
+    auto remaining = design.total;
+    for (const auto& req : design.required) {
+      if (auto& entry = supply[req.stem]) {
+        auto take = min({req.count, entry, remaining});
+        arrangement.push_front({req.stem, take});
+        entry -= take;
+        remaining -= take;
+      } else {
+        return false;
+      }
+    }
+    return remaining == 0;
+  }
+
+  void _restore(const forward_list<StemCount>& arrangement) {
+    // Adds the stems in the arrangement back to the supply.
+    for (const auto& spec : arrangement)
+      supply[spec.stem] += spec.count;
+  }
+};
 
 bool readline(string& line) {
   // Reads a line, signaling the end of a paragraph in addition to EOF.
@@ -184,26 +214,14 @@ bool readline(string& line) {
 
 int main() {
   ios::sync_with_stdio(false);
-  unordered_map<Stem, int> flower_counts;
-  unordered_map<Stem, forward_list<Design>> designs_by_stem;
+  Composer composer;
+
+  for (string line; readline(line);)
+    composer.add_design(Design::from_string(line));
 
   for (string line; readline(line);) {
-    auto design = Design::from_string(line);
-    for (const auto& req : design.required)
-      designs_by_stem[req.stem].push_front(design);
-  }
-
-  for (string line; readline(line);) {
-    const auto stem = Stem::from_string(line);
-    flower_counts[stem] += 1;
-    for (const auto& design : designs_by_stem[stem]) {
-      forward_list<StemCount> arrangement;
-      if (extract(flower_counts, design, arrangement)) {
-        auto bouquet = Bouquet(design, arrangement);
-        cout << bouquet << "\n";
-      } else {
-        restore(flower_counts, arrangement);
-      }
-    }
+    auto stem = composer.add_stem(Stem::from_string(line));
+    if (auto bouquet = composer.bouquet_for_stem(stem))
+      cout << *bouquet << "\n";
   }
 }
