@@ -78,7 +78,7 @@ class StemCount {
  private:
   friend ostream& operator<<(ostream& out, StemCount const& req) {
     // Output streaming for StemCount objects
-    return out << req.stem.species << req.count;
+    return out << req.count << req.stem.species ;
   }
 };
 
@@ -106,20 +106,21 @@ class Design {
     auto bouquet_size = stoi(match[4]);
 
     // Determine raw maximums per stem species
-    unordered_map<char, int> requirements;
-    for (const auto& spec_match : regex_iter_match(match[3], pat_spec))
-      requirements[spec_match[2].first[0]] = stoi(spec_match[1]);
+    vector<StemCount> raw_stem_specifications;
+    for (const auto& spec_match : regex_iter_match(match[3], pat_spec)) {
+      Stem stem{spec_match[2].first[0], stem_size};
+      raw_stem_specifications.push_back({stem, stoi(spec_match[1])});
+    }
 
     // Determine bounded maximums for stem requirements
-    int stem_count = requirements.size();
+    int stem_count = raw_stem_specifications.size();
     auto any_stem_max = bouquet_size - stem_count + 1;
     forward_list<StemCount> required;
-    for (const auto& [species, stem_max] : requirements) {
-      const auto stem = Stem{species, stem_size};
-      const auto max_required = min(stem_max, any_stem_max);
+    for (const auto& spec : raw_stem_specifications) {
+      const auto max_required = min(spec.count, any_stem_max);
       if (max_required < 1)
         throw invalid_argument("Stem count must be a positive int");
-      required.push_front(StemCount{stem, max_required});
+      required.push_front(StemCount{move(spec.stem), max_required});
     }
     return Design{name, stem_size, required, bouquet_size};
   }
@@ -136,25 +137,25 @@ class Design {
 
 class Bouquet {
  public:
-  Bouquet(const Design& design, vector<StemCount> arrangement)
+  Bouquet(const Design& design, forward_list<StemCount> arrangement)
       : design(design), arrangement(arrangement) {}
 
  private:
   const Design& design;
-  const vector<StemCount> arrangement;
+  const forward_list<StemCount> arrangement;
 
   friend ostream& operator<<(ostream& out, Bouquet const& bouquet) {
     // Output streaming and formatting for Bouquet objects
     out << bouquet.design.name << bouquet.design.size;
     for (const auto& spec : bouquet.arrangement)
-      out << spec.count << spec.stem.species;
+      out << spec;
     return out;
   }
 };
 
 bool extract(unordered_map<Stem, int>& supply,
              const Design& design,
-             vector<StemCount>& arrangement) {
+             forward_list<StemCount>& arrangement) {
   // Takes flowers from the supply into the given arrangement, reports success.
   auto remaining = design.total;
   for (const auto& req : design.required) {
@@ -162,7 +163,7 @@ bool extract(unordered_map<Stem, int>& supply,
     if (!entry)
       return false;
     auto take = min({req.count, entry, remaining});
-    arrangement.push_back({req.stem, take});
+    arrangement.push_front({req.stem, take});
     entry -= take;
     remaining -= take;
   }
@@ -170,7 +171,7 @@ bool extract(unordered_map<Stem, int>& supply,
 }
 
 void restore(unordered_map<Stem, int>& supply,
-            const vector<StemCount>& arrangement) {
+             const forward_list<StemCount>& arrangement) {
   for (const auto& spec : arrangement)
     supply[spec.stem] += spec.count;
 }
@@ -196,7 +197,7 @@ int main() {
     const auto stem = Stem::from_string(line);
     flower_counts[stem] += 1;
     for (const auto& design : designs_by_stem[stem]) {
-      vector<StemCount> arrangement;
+      forward_list<StemCount> arrangement;
       if (extract(flower_counts, design, arrangement)) {
         auto bouquet = Bouquet(design, arrangement);
         cout << bouquet << "\n";
