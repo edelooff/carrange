@@ -1,4 +1,3 @@
-#include <forward_list>
 #include <iostream>
 #include <optional>
 #include <regex>
@@ -48,7 +47,8 @@ class Stem {
     // Equality if all members are equal
     return species == other.species && size == other.size;
   }
-  static Stem from_string(const std::string_view spec) {
+
+  static Stem from_string(const std::string spec) {
     if (spec.size() != 2)
       throw std::invalid_argument(
           "Species should be initiated from 2-char string.");
@@ -88,12 +88,12 @@ class Design {
  public:
   const char name;
   const char size;
-  const std::forward_list<StemCount> required;
+  const std::vector<StemCount> required;
   const int total;
 
   Design(const char name,
          const char size,
-         const std::forward_list<StemCount> required,
+         const std::vector<StemCount> required,
          const int total)
       : name(name), size(size), required(required), total(total) {}
 
@@ -111,18 +111,18 @@ class Design {
     std::vector<StemCount> raw_stem_specifications;
     for (const auto& spec_match : regex_iter_match(match[3], pat_spec)) {
       Stem stem{spec_match[2].first[0], stem_size};
-      raw_stem_specifications.push_back({stem, stoi(spec_match[1])});
+      raw_stem_specifications.emplace_back(stem, stoi(spec_match[1]));
     }
 
     // Determine bounded maximums for stem requirements
     int stem_count = raw_stem_specifications.size();
     auto any_stem_max = bouquet_size - stem_count + 1;
-    std::forward_list<StemCount> required;
+    std::vector<StemCount> required;
     for (const auto& spec : raw_stem_specifications) {
       const auto max_required = std::min(spec.count, any_stem_max);
       if (max_required < 1)
         throw std::invalid_argument("Stem count must be a positive int");
-      required.push_front(StemCount{std::move(spec.stem), max_required});
+      required.emplace_back(std::move(spec.stem), max_required);
     }
     return Design{name, stem_size, required, bouquet_size};
   }
@@ -139,12 +139,12 @@ class Design {
 
 class Bouquet {
  public:
-  Bouquet(const Design& design, const std::forward_list<StemCount> arrangement)
+  Bouquet(const Design& design, const std::vector<StemCount> arrangement)
       : design(design), arrangement(arrangement) {}
 
  private:
   const Design& design;
-  const std::forward_list<StemCount> arrangement;
+  const std::vector<StemCount> arrangement;
 
   friend std::ostream& operator<<(std::ostream& out, const Bouquet& bouquet) {
     // Output streaming and formatting for Bouquet objects
@@ -159,7 +159,7 @@ class Composer {
  public:
   void add_design(const Design design) {
     for (const auto& req : design.required)
-      designs[req.stem].push_front(design);
+      designs[req.stem].push_back(design);
   }
 
   const Stem add_stem(const Stem stem) {
@@ -170,7 +170,7 @@ class Composer {
   std::optional<Bouquet> bouquet_for_stem(const Stem& stem) {
     // Returns a Bouquet if one could be created given a newly inserted stem.
     for (const auto& design : designs[stem]) {
-      std::forward_list<StemCount> arrangement;
+      std::vector<StemCount> arrangement;
       if (_extract(design, arrangement)) {
         return Bouquet{design, arrangement};
       } else {
@@ -182,16 +182,15 @@ class Composer {
 
  private:
   std::unordered_map<Stem, int> supply;
-  std::unordered_map<Stem, std::forward_list<Design>> designs;
+  std::unordered_map<Stem, std::vector<Design>> designs;
 
-  bool _extract(const Design& design,
-                std::forward_list<StemCount>& arrangement) {
+  bool _extract(const Design& design, std::vector<StemCount>& arrangement) {
     // Moves flowers from the supply into the given arrangement.
     auto remaining = design.total;
     for (const auto& req : design.required) {
       if (auto& entry = supply[req.stem]) {
         auto take = std::min({req.count, entry, remaining});
-        arrangement.push_front({req.stem, take});
+        arrangement.emplace_back(req.stem, take);
         entry -= take;
         remaining -= take;
       } else {
@@ -201,7 +200,7 @@ class Composer {
     return remaining == 0;
   }
 
-  void _restore(const std::forward_list<StemCount>& arrangement) {
+  void _restore(const std::vector<StemCount>& arrangement) {
     // Adds the stems in the arrangement back to the supply.
     for (const auto& spec : arrangement)
       supply[spec.stem] += spec.count;
