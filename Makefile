@@ -1,6 +1,10 @@
-.DEFAULT_GOAL=build
+.DEFAULT_GOAL=composer
 
-TARGET := "composer"
+composer: composer.cpp
+	clang++ -O3 -Wall --std=c++20 composer.cpp -o composer
 
-build:
-	clang++ -O2 -Wall --std=c++20 $(TARGET).cpp -o $(TARGET)
+test: composer
+	./composer < example.in.txt | diff - example.out.txt
+
+clean:
+	rm composer
