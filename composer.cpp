@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 #include <optional>
 #include <regex>
 #include <stdexcept>
@@ -108,21 +109,20 @@ class Design {
     auto bouquet_size = stoi(match[4]);
 
     // Determine raw maximums per stem species
-    std::vector<StemCount> raw_stem_specifications;
+    std::map<Stem, int> raw_stem_counts;
     for (const auto& spec_match : regex_iter_match(match[3], pat_spec)) {
       Stem stem{spec_match[2].first[0], stem_size};
-      raw_stem_specifications.emplace_back(stem, stoi(spec_match[1]));
+      raw_stem_counts[stem] = stoi(spec_match[1]);
     }
 
     // Determine bounded maximums for stem requirements
-    int stem_count = raw_stem_specifications.size();
-    auto any_stem_max = bouquet_size - stem_count + 1;
+    const int any_stem_max = bouquet_size - raw_stem_counts.size() + 1;
     std::vector<StemCount> required;
-    for (const auto& spec : raw_stem_specifications) {
-      const auto max_required = std::min(spec.count, any_stem_max);
+    for (const auto& [stem, count] : raw_stem_counts) {
+      const auto max_required = std::min(count, any_stem_max);
       if (max_required < 1)
         throw std::invalid_argument("Stem count must be a positive int");
-      required.emplace_back(std::move(spec.stem), max_required);
+      required.emplace_back(std::move(stem), max_required);
     }
     return Design{name, stem_size, required, bouquet_size};
   }
