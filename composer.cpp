@@ -45,7 +45,7 @@ class Stem {
 
   bool operator<(const Stem& other) const {
     // Small stems before large, species in alphabetical order.
-    return (size == other.size) ? species < other.species : size > other.size;
+    return size > other.size || (size == other.size && species < other.species);
   }
   bool operator==(const Stem& other) const {
     // Equality if all members are equal
@@ -59,9 +59,9 @@ class Stem {
   char species;
   char size;
 
-  friend std::ostream& operator<<(std::ostream& os, const Stem& stem) {
+  friend std::ostream& operator<<(std::ostream& out, const Stem& stem) {
     // Output streaming for Stem objects
-    return (os << stem.species << stem.size);
+    return out << stem.species << stem.size;
   }
 };
 
@@ -185,10 +185,10 @@ class Composer {
   bool _extract(const Design& design, std::vector<StemCount>& arrangement) {
     // Moves flowers from the supply into the given arrangement.
     auto remaining = design.total();
-    for (const auto& req : design.stem_counts()) {
-      if (auto& available = supply[req.stem]) {
-        auto take = std::min({req.count, available, remaining});
-        arrangement.emplace_back(req.stem, take);
+    for (const auto& option : design.stem_counts()) {
+      if (auto& available = supply[option.stem]) {
+        const auto take = std::min({available, option.count, remaining});
+        arrangement.emplace_back(option.stem, take);
         available -= take;
         remaining -= take;
       } else {
