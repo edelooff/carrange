@@ -89,68 +89,68 @@ class StemCount {
 
 class Design {
  public:
-  const char name;
-  const char size;
-  const std::vector<StemCount> required;
-  const int total;
-
-  Design(const char name,
-         const char size,
-         const std::vector<StemCount> required,
-         const int total)
-      : name(name), size(size), required(required), total(total) {}
-
-  static Design from_string(const std::string spec) {
-    std::regex pat_design{R"(([A-Z])([SL])((?:\d+[a-z])+)(\d+))"};
-    std::regex pat_spec{R"((\d+)([a-z]))"};
+  Design(const std::string spec) {
     std::smatch match;
-    if (!std::regex_match(spec, match, pat_design))
+    if (!std::regex_match(spec, match, _re_design))
       throw std::invalid_argument(std::string("Not a valid pattern: ") + spec);
-    auto name = match[1].first[0];
-    auto stem_size = match[2].first[0];
-    auto bouquet_size = stoi(match[4]);
+    const auto stem_size = match[2].str();
+    _total = stoi(match[4]);
+    _code = match[1].str() + stem_size;
 
     // Determine raw maximums per stem species
     std::map<Stem, int> raw_stem_counts;
-    for (const auto& spec_match : regex_iter_match(match[3], pat_spec)) {
-      Stem stem{spec_match[2].str() + stem_size};
-      raw_stem_counts[stem] = stoi(spec_match[1]);
+    for (const auto& stem_match : regex_iter_match(match[3], _re_stems)) {
+      const int stem_count = stoi(stem_match[1]);
+      const char stem_species = stem_match[2].first[0];
+      raw_stem_counts.emplace(stem_species + stem_size, stem_count);
     }
 
-    // Determine bounded maximums for stem requirements
-    const int any_stem_max = bouquet_size - raw_stem_counts.size() + 1;
-    std::vector<StemCount> required;
+    // Store bounded maximums per stem in design
+    const int any_stem_max = _total - raw_stem_counts.size() + 1;
     for (const auto& [stem, count] : raw_stem_counts) {
-      const auto max_required = std::min(count, any_stem_max);
-      if (max_required < 1)
+      const auto stem_max = std::min(count, any_stem_max);
+      if (stem_max < 1)
         throw std::invalid_argument("Stem count must be a positive int");
-      required.emplace_back(std::move(stem), max_required);
+      _stem_counts.emplace_back(stem, stem_max);
     }
-    return Design{name, stem_size, required, bouquet_size};
   }
 
+  const std::string& code() const { return _code; }
+  int total() const { return _total; }
+  const std::vector<StemCount>& stem_counts() const { return _stem_counts; }
+
  private:
+  std::string _code;
+  std::vector<StemCount> _stem_counts;
+  int _total;
+
+  static const std::regex _re_design;
+  static const std::regex _re_stems;
+
   friend std::ostream& operator<<(std::ostream& out, const Design& design) {
     // Output streaming for Design objects
-    out << "Design " << design.name << "[" << design.size << "] takes: ";
-    for (const auto& req : design.required)
+    out << "Design " << design._code << " with stem options ";
+    for (const auto& req : design._stem_counts)
       out << req;
-    return out << " with total " << design.total;
+    return out << " and total " << design._total;
   }
 };
 
+const std::regex Design::_re_design{R"(([A-Z])([SL])((?:\d+[a-z])+)(\d+))"};
+const std::regex Design::_re_stems{R"((\d+)([a-z]))"};
+
 class Bouquet {
  public:
-  Bouquet(const Design& design, const std::vector<StemCount> arrangement)
-      : design(design), arrangement(arrangement) {}
+  Bouquet(const std::string& code, std::vector<StemCount> arrangement)
+      : code(code), arrangement(arrangement) {}
 
  private:
-  const Design& design;
-  const std::vector<StemCount> arrangement;
+  const std::string& code;
+  std::vector<StemCount> arrangement;
 
   friend std::ostream& operator<<(std::ostream& out, const Bouquet& bouquet) {
     // Output streaming and formatting for Bouquet objects
-    out << bouquet.design.name << bouquet.design.size;
+    out << bouquet.code;
     for (const auto& spec : bouquet.arrangement)
       out << spec;
     return out;
@@ -160,7 +160,7 @@ class Bouquet {
 class Composer {
  public:
   void add_design(const Design design) {
-    for (const auto& req : design.required)
+    for (const auto& req : design.stem_counts())
       designs[req.stem].push_back(design);
   }
 
@@ -174,7 +174,7 @@ class Composer {
     for (const auto& design : designs[stem]) {
       std::vector<StemCount> arrangement;
       if (_extract(design, arrangement)) {
-        return Bouquet{design, arrangement};
+        return Bouquet{design.code(), arrangement};
       } else {
         _restore(arrangement);
       }
@@ -188,12 +188,12 @@ class Composer {
 
   bool _extract(const Design& design, std::vector<StemCount>& arrangement) {
     // Moves flowers from the supply into the given arrangement.
-    auto remaining = design.total;
-    for (const auto& req : design.required) {
-      if (auto& entry = supply[req.stem]) {
-        auto take = std::min({req.count, entry, remaining});
+    auto remaining = design.total();
+    for (const auto& req : design.stem_counts()) {
+      if (auto& available = supply[req.stem]) {
+        auto take = std::min({req.count, available, remaining});
         arrangement.emplace_back(req.stem, take);
-        entry -= take;
+        available -= take;
         remaining -= take;
       } else {
         return false;
@@ -220,7 +220,7 @@ int main() {
   Composer composer;
 
   for (std::string line; readline(line);)
-    composer.add_design(Design::from_string(line));
+    composer.add_design(line);
 
   for (std::string line; readline(line);) {
     const auto stem = composer.add_stem(line);
