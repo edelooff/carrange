@@ -28,10 +28,13 @@ class regex_iter_match {
 
 class Stem {
  public:
-  const char species;
-  const char size;
+  Stem(const std::string spec) {
+    if (spec.size() != 2)
+      throw std::invalid_argument("Stem constructor takes 2-character string.");
 
-  Stem(const char species, const char size) : species(species), size(size) {
+    species = spec[0];
+    size = spec[1];
+    // Invariant checks
     if (species < 'a' || 'z' < species) {
       auto err_msg = std::string("Species not in range a-z: ") + species;
       throw std::invalid_argument(err_msg);
@@ -48,15 +51,14 @@ class Stem {
     // Equality if all members are equal
     return species == other.species && size == other.size;
   }
+  char get_species() const { return species; }
 
-  static Stem from_string(const std::string spec) {
-    if (spec.size() != 2)
-      throw std::invalid_argument(
-          "Species should be initiated from 2-char string.");
-    return Stem{spec[0], spec[1]};
-  }
+  friend std::hash<Stem>;
 
  private:
+  char species;
+  char size;
+
   friend std::ostream& operator<<(std::ostream& os, const Stem& stem) {
     // Output streaming for Stem objects
     return (os << stem.species << stem.size);
@@ -81,7 +83,7 @@ class StemCount {
  private:
   friend std::ostream& operator<<(std::ostream& out, const StemCount& req) {
     // Output streaming for StemCount objects
-    return out << req.count << req.stem.species;
+    return out << req.count << req.stem.get_species();
   }
 };
 
@@ -111,7 +113,7 @@ class Design {
     // Determine raw maximums per stem species
     std::map<Stem, int> raw_stem_counts;
     for (const auto& spec_match : regex_iter_match(match[3], pat_spec)) {
-      Stem stem{spec_match[2].first[0], stem_size};
+      Stem stem{spec_match[2].str() + stem_size};
       raw_stem_counts[stem] = stoi(spec_match[1]);
     }
 
@@ -221,7 +223,7 @@ int main() {
     composer.add_design(Design::from_string(line));
 
   for (std::string line; readline(line);) {
-    auto stem = composer.add_stem(Stem::from_string(line));
+    const auto stem = composer.add_stem(line);
     if (auto bouquet = composer.bouquet_for_stem(stem))
       std::cout << *bouquet << std::endl;
   }
