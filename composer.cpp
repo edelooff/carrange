@@ -164,10 +164,7 @@ class Composer {
       designs[req.stem].push_back(design);
   }
 
-  const Stem add_stem(const Stem stem) {
-    supply[stem] += 1;
-    return stem;
-  }
+  void add_stem(const Stem& stem) { supply[stem] += 1; }
 
   std::optional<Bouquet> bouquet_for_stem(const Stem& stem) {
     // Returns a Bouquet if one could be created given a newly inserted stem.
@@ -222,7 +219,8 @@ int main() {
     composer.add_design(line);
 
   for (std::string line; readline(line);) {
-    const auto stem = composer.add_stem(line);
+    const Stem stem{line};
+    composer.add_stem(stem);
     if (auto bouquet = composer.bouquet_for_stem(stem))
       std::cout << *bouquet << std::endl;
   }
