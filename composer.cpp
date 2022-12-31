@@ -10,7 +10,7 @@
 class regex_iter_match {
   // A range-for compatible regular expression iterator.
  public:
-  typedef std::regex_iterator<std::string::const_iterator> iterator;
+  using iterator = std::regex_iterator<std::string::const_iterator>;
 
   regex_iter_match(const std::string& s, const std::string& expr)
       : _expr(expr), _begin(s.begin(), s.end(), _expr), _end() {}
