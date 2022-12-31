@@ -160,6 +160,7 @@ class Bouquet {
 class Composer {
  public:
   void add_design(const Design design) {
+    workspace.reserve(design.stem_counts().size());
     for (const auto& req : design.stem_counts())
       designs[req.stem].push_back(design);
   }
@@ -167,29 +168,29 @@ class Composer {
   void add_stem(const Stem& stem) { supply[stem] += 1; }
 
   std::optional<Bouquet> bouquet_for_stem(const Stem& stem) {
-    // Returns a Bouquet if one could be created given a newly inserted stem.
-    std::vector<StemCount> arrangement;
+    // Returns an optional Bouquet, created from a Design containing the Stem.
     for (const auto& design : designs[stem]) {
-      if (_extract(design, arrangement))
-        return Bouquet{design.code(), arrangement};
-      _restore(arrangement);
-      arrangement.clear();
+      if (_select_stems(design)) {
+        _take_arrangement_from_supply();
+        return Bouquet{design.code(), workspace};
+      }
     }
     return std::nullopt;
   }
 
  private:
+  std::vector<StemCount> workspace;
   std::unordered_map<Stem, int> supply;
   std::unordered_map<Stem, std::vector<Design>> designs;
 
-  bool _extract(const Design& design, std::vector<StemCount>& arrangement) {
-    // Moves flowers from the supply into the given arrangement.
+  bool _select_stems(const Design& design) {
+    // Selects stems of design into workspace and returns completion of bouquet.
+    workspace.clear();
     auto remaining = design.total();
     for (const auto& option : design.stem_counts()) {
-      if (auto& available = supply[option.stem]) {
+      if (const auto& available = supply[option.stem]) {
         const auto take = std::min({available, option.count, remaining});
-        arrangement.emplace_back(option.stem, take);
-        available -= take;
+        workspace.emplace_back(option.stem, take);
         remaining -= take;
       } else {
         return false;
@@ -198,10 +199,10 @@ class Composer {
     return remaining == 0;
   }
 
-  void _restore(const std::vector<StemCount>& arrangement) {
-    // Adds the stems in the arrangement back to the supply.
-    for (const auto& spec : arrangement)
-      supply[spec.stem] += spec.count;
+  void _take_arrangement_from_supply() {
+    // Removes the stems in the workspace from the supply.
+    for (const auto& spec : workspace)
+      supply[spec.stem] -= spec.count;
   }
 };
 
