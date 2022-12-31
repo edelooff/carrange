@@ -171,13 +171,12 @@ class Composer {
 
   std::optional<Bouquet> bouquet_for_stem(const Stem& stem) {
     // Returns a Bouquet if one could be created given a newly inserted stem.
+    std::vector<StemCount> arrangement;
     for (const auto& design : designs[stem]) {
-      std::vector<StemCount> arrangement;
-      if (_extract(design, arrangement)) {
+      if (_extract(design, arrangement))
         return Bouquet{design.code(), arrangement};
-      } else {
-        _restore(arrangement);
-      }
+      _restore(arrangement);
+      arrangement.clear();
     }
     return std::nullopt;
   }
