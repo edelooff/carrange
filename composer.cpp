@@ -187,9 +187,11 @@ class Composer {
     // Selects stems of design into workspace and returns completion of bouquet.
     workspace.clear();
     auto remaining = design.total();
+    auto remaining_options = design.stem_counts().size();
     for (const auto& option : design.stem_counts()) {
       if (const auto& available = supply[option.stem]) {
-        const auto take = std::min({available, option.count, remaining});
+        const int maximum_take = remaining - (--remaining_options);
+        const auto take = std::min({available, option.count, maximum_take});
         workspace.emplace_back(option.stem, take);
         remaining -= take;
       } else {

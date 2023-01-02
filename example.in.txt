@@ -1,5 +1,6 @@
 AS3b2a4
 EL3x4y5
+XS2n2o2p4
 
 aS
 aS
@@ -19,3 +20,8 @@ yL
 xL
 yL
 aS
+nS
+nS
+oS
+oS
+pS
