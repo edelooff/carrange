@@ -6,5 +6,8 @@ composer: composer.cpp
 test: composer
 	./composer < example.in.txt | diff - example.out.txt
 
+docker:
+	docker build . -t carrange
+
 clean:
 	rm composer
