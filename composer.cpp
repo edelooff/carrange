@@ -1,3 +1,4 @@
+#include <compare>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -43,14 +44,8 @@ class Stem {
       throw std::invalid_argument(std::string("Size not one of S, L: ") + size);
   }
 
-  bool operator<(const Stem& other) const {
-    // Small stems before large, species in alphabetical order.
-    return size > other.size || (size == other.size && species < other.species);
-  }
-  bool operator==(const Stem& other) const {
-    // Equality if all members are equal
-    return species == other.species && size == other.size;
-  }
+  bool operator==(const Stem&) const = default;
+  auto operator<=>(const Stem&) const = default;
   char get_species() const { return species; }
 
   friend std::hash<Stem>;
@@ -69,7 +64,7 @@ namespace std {
 template <>
 struct std::hash<Stem> {
   size_t operator()(const Stem& stem) const {
-    return stem.size << 8 | stem.species;
+    return (stem.size << 8) | stem.species;
   }
 };
 }  // namespace std
@@ -116,8 +111,8 @@ class Design {
   }
 
   const std::string& code() const { return _code; }
-  int total() const { return _total; }
   const std::vector<StemCount>& stem_counts() const { return _stem_counts; }
+  int total() const { return _total; }
 
  private:
   std::string _code;
