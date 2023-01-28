@@ -11,3 +11,7 @@ docker:
 
 clean:
 	rm composer
+
+rotate: rotate.cpp
+	clang++ -Wall --std=c++20 rotate.cpp -o rotate
+	./rotate

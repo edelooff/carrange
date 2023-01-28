@@ -164,10 +164,14 @@ class Composer {
 
   std::optional<Bouquet> bouquet_for_stem(const Stem& stem) noexcept {
     // Returns an optional Bouquet, created from a Design containing the Stem.
-    for (const auto& design : designs[stem]) {
-      if (_select_stems(design)) {
+    // When a bouquet is created, the design it was created from is moved
+    // to the beginning of the designs-for-stem vector.
+    auto& dvec = designs[stem];
+    for (auto design = dvec.begin(); design != dvec.end(); ++design) {
+      if (_select_stems(*design)) {
         _take_arrangement_from_supply();
-        return Bouquet{design.code(), workspace};
+        std::rotate(dvec.begin(), design, design + 1);
+        return Bouquet{design->code(), workspace};
       }
     }
     return std::nullopt;
