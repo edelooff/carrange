@@ -37,11 +37,11 @@ class Stem {
     size = spec[1];
     // Invariant checks
     if (species < 'a' || 'z' < species) {
-      auto err_msg = std::string("Species not in range a-z: ") + species;
+      auto err_msg = std::string("Species not in range a-z: ") + spec;
       throw std::invalid_argument(err_msg);
     }
     if (size != 'S' && size != 'L')
-      throw std::invalid_argument(std::string("Size not one of S, L: ") + size);
+      throw std::invalid_argument(std::string("Size not one of S, L: ") + spec);
   }
 
   bool operator==(const Stem&) const = default;
@@ -154,15 +154,15 @@ class Bouquet {
 
 class Composer {
  public:
-  void add_design(const Design design) {
+  void add_design(const Design design) noexcept {
     workspace.reserve(design.stem_counts().size());
     for (const auto& req : design.stem_counts())
       designs[req.stem].push_back(design);
   }
 
-  void add_stem(const Stem& stem) { supply[stem] += 1; }
+  void add_stem(const Stem& stem) noexcept { supply[stem] += 1; }
 
-  std::optional<Bouquet> bouquet_for_stem(const Stem& stem) {
+  std::optional<Bouquet> bouquet_for_stem(const Stem& stem) noexcept {
     // Returns an optional Bouquet, created from a Design containing the Stem.
     for (const auto& design : designs[stem]) {
       if (_select_stems(design)) {
@@ -178,7 +178,7 @@ class Composer {
   std::unordered_map<Stem, int> supply;
   std::unordered_map<Stem, std::vector<Design>> designs;
 
-  bool _select_stems(const Design& design) {
+  bool _select_stems(const Design& design) noexcept {
     // Selects stems of design into workspace and returns completion of bouquet.
     workspace.clear();
     auto remaining = design.total();
@@ -196,14 +196,14 @@ class Composer {
     return remaining == 0;
   }
 
-  void _take_arrangement_from_supply() {
+  void _take_arrangement_from_supply() noexcept {
     // Removes the stems in the workspace from the supply.
     for (const auto& spec : workspace)
       supply[spec.stem] -= spec.count;
   }
 };
 
-bool readline(std::string& line, std::istream& source = std::cin) {
+bool readline(std::string& line, std::istream& source = std::cin) noexcept {
   // Reads a line, signaling the end of a paragraph in addition to EOF.
   std::getline(source, line);
   return source && line.size();
