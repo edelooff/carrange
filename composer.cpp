@@ -136,11 +136,11 @@ const std::regex Design::_re_stems{R"((\d+)([a-z]))"};
 
 class Bouquet {
  public:
-  Bouquet(const std::string& code, std::vector<StemCount> arrangement)
+  Bouquet(const std::string& code, std::vector<StemCount>& arrangement)
       : code(code), arrangement(arrangement) {}
 
  private:
-  const std::string& code;
+  const std::string code;
   std::vector<StemCount> arrangement;
 
   friend std::ostream& operator<<(std::ostream& out, const Bouquet& bouquet) {
@@ -170,8 +170,9 @@ class Composer {
     for (auto design = dvec.begin(); design != dvec.end(); ++design) {
       if (_select_stems(*design)) {
         _take_arrangement_from_supply();
+        Bouquet bouquet {design->code(), workspace};
         std::rotate(dvec.begin(), design, design + 1);
-        return Bouquet{design->code(), workspace};
+        return bouquet;
       }
     }
     return std::nullopt;
